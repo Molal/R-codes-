@@ -1,0 +1,143 @@
+##Olal Darick <olaldarick@gmail.com>
+	
+Preparation of the Location Map of Forest Concessions in the R-Studio interface
+Free software for managing and presenting geospatial data
+
+Annex the code of the commands for your scripts
+
+# Librerias
+#------------------------------------------------------------------------
+library(tidyverse)
+library(rnaturalearth) #Continentes
+library(rnaturalearthdata) #Continentes especifico
+library(sf)
+library(raster) # Extracion de Peru
+library(reticulate)
+library(maptools)
+library(maps)
+library(ggplot2) # Graficos avanzados
+library(ggspatial) # Norte
+library(cowplot) # Agregar grafico ensima de otro
+library(ggpubr)
+#------------------------------------------------------------------------
+world <- ne_countries(scale= "small", returnclass = "sf")# Continentes del mundo
+world.SA <- subset(world, continent=="South America") # Sur America
+# obtener puntos centrales y coordenadas para etiquetar los nombres de los países
+world_points<- st_centroid(world) # Centros de cada pais
+world_points <- cbind(world, st_coordinates(st_centroid(world$geometry))) #Utilizamos la geometria
+Sur_America <- subset(world_points, continent == "South America")
+
+Peru_S <- subset(Sur_America, iso_a3 == "PER") # Seleccionamos por Pais
+Peru <- getData('GADM', country='Peru', level=2) #Extracion de Peru
+Depa <- st_read("Departamentos.shp") #Departamentos
+Dis <- st_read("DistritosMDD.shp") # Distritos de Madre de Dios
+Concesiones <- st_read("Con_Fores.shp")
+Centro_Pobla <- st_read("Cen_Pobla.shp")
+Red_Vial <- st_read("Red_Vial.shp")
+Departa <- st_read("Departamentos.shp")
+Inter_Nacion <- st_read("Internacional.shp")
+Aserradero <- st_read("Con_Espinosa.shp") #Aserradero
+Rios <- st_read("Rios.shp") # Rios de Madre de Dios
+Marco_Per = st_as_sfc(st_bbox(Red_Vial))
+#------------------------------------------------------------------------
+library(colorspace) #https://awesomeopensource.com/project/EmilHvitfeldt/r-color-palettes
+hcl_palettes(plot = TRUE)
+q4 <- sequential_hcl(4, palette = "Batlow")
+#------------------------------------------------------------------------
+# Grafico Continental
+P1 <- ggplot() +
+geom_sf(data = Sur_America, fill= NA, lwd=1, color="black",alpha = 1, linetype = 1)+
+geom_sf(data=Departa , fill=NA, color="black")+
+geom_sf(data = Marco_Per, fill = NA, color = 'red', size = 1.2)+
+geom_text(data= Sur_America,aes(x=X, y=Y, label=admin), size = 2,
+color = "black", fontface = "bold", check_overlap = FALSE)+
+annotation_scale() +
+annotation_north_arrow(location="br",which_north="true",style=north_arrow_nautical ())+
+theme_classic()+
+labs(title = "Mapa de América del Sur", subtitle="Mapa de Ubicacion",
+caption="Gorky Florez",x="Longitud",y="Latitud",tag="A)")
+
+P2 <-ggplot() +
+geom_sf(data = Dis, aes(fill = DI_NODIS), lwd=1, color="black",alpha = 1, linetype = 1, show.legend = FALSE )+
+geom_sf(data=Concesiones, fill='#abc5a1', color="black")+
+geom_sf(data=Centro_Pobla, fill=NA, color="black")+
+geom_sf(data=Red_Vial, fill=NA, color="#A93154",alpha = 5)+
+geom_sf(data=Aserradero, fill="#398E88" , color="black")+
+geom_sf(data=Departa , fill=NA, color="black")+
+geom_sf(data=Inter_Nacion , fill=NA, color="black")+
+scale_fill_manual(values = grey.colors(13, rev = TRUE))+
+coord_sf(crs = st_crs('+proj=longlat'),xlim = c(-73, -68.24139), ylim = c(-13.49861, -9.59028),expand = FALSE)+
+theme_classic()+
+annotation_scale() +
+annotation_north_arrow(location="br",which_north="true",style=north_arrow_nautical ())+
+theme(panel.grid.major = element_line(color = gray(.5),
+linetype = "dashed", size = 0.5),
+panel.background = element_rect(fill = "white",colour = "grey50"),
+legend.title = element_text(face=2),
+legend.background = element_blank(),
+legend.key = element_blank(),
+legend.position = c(.01, .15),
+legend.justification = c("left", "bottom"),
+legend.box.just = "left",
+legend.text = element_text(size=8,face=2))+
+labs(color="Species",fill = "Distritos")+
+labs(title = "Mapa de Distrital de Madre de Dios",
+subtitle="Mapa de Ubicacion de Concesiones Madereras",
+caption="Gorky Florez",x="Longitud",y="Latitud",tag="B)")
+
+P3 <-ggplot() +
+geom_sf(data = Dis, aes(fill = DI_NODIS), lwd=1, color="black",alpha = 1, linetype = 1, show.legend = FALSE )+
+geom_sf(data=Concesiones, fill='#abc5a1', color="black")+
+geom_sf(data=Centro_Pobla, fill=NA, color="black")+
+geom_sf(data=Aserradero, fill="#398E88" , color="black")+
+geom_sf(data=Rios, fill=NA, color="blue")+
+geom_sf(data=Red_Vial, fill=NA, color="#A93154",alpha = 5)+
+geom_sf(data=Departa , fill=NA, color="black")+
+geom_sf(data=Inter_Nacion , fill=NA, color="black")+
+scale_fill_manual(values = grey.colors(13, rev = TRUE))+
+coord_sf(crs = st_crs('+proj=longlat'),xlim = c(-70.3, -69.7), ylim = c(-11.6, -11.2),expand = FALSE)+
+theme_classic()+
+annotation_scale() +
+annotation_north_arrow(location="br",which_north="true",style=north_arrow_nautical ())+
+labs(title = "Mapa de Ubicacion de Concesión ", subtitle="Aserradero Espinosa",
+caption="Gorky Florez Castillo",x="Longitud",y="Latitud",tag="C)")
+
+# Grafico en Barras
+
+P4 <-ggdotchart(Dis, x = "DI_NOCAP", y = "Hectares",
+color = "DI_NOPRO",
+palette = c("#201158" ,"#007054" ,"#C19A1B"),
+sorting = "descending",
+rotate = TRUE,
+dot.size = 2,
+y.text.col = TRUE,
+ggtheme = theme_pubr())+theme_cleveland()+
+labs(color="Provincias",fill = "Tipo de Clima") +
+labs(title = "Diagrama de puntos de Cleveland", subtitle = "",
+caption = "Gorky Florez",x = "Distritos de Madre de Dios",
+y="Área Distrital (ha)" ,tag = "D)")
+
+P5 <-ggdotchart(Concesiones, x = "TITULA", y = "Shape_Leng",
+color = "AUTFOR",
+palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+sorting = "descending",
+add = "segments",
+rotate = TRUE,
+group = "AUTFOR",
+dot.size = 6,
+label = round(Concesiones$Shape_Leng),
+font.label = list(color = "white", size = 9,
+vjust = 0.5),
+ggtheme = theme_pubr(base_size = 6))+
+labs(color="Provincias",fill = "Tipo de Clima") +
+labs(title = "Diagrama de puntos de Cleveland", subtitle = "",
+caption = "Gorky Florez",x = "Titulares de Concesiones Madereras",
+y="Área Distrital (ha)" ,tag = "E)")
+#-----------------------------------------------------------------------------------
+# Exportacion del Mapa
+library(gridExtra)
+B<-grid.arrange(P1,P2,P3,P4,P5,ncol = 3,layout_matrix = cbind(c(1,1,1,1,1), c(2,2,2,3,3), c(4,4,5,5,5)))
+# Guargdar en formato PNG
+ggsave("Concesiones Madereras2.png",plot = B, width = 23,height = 12, dpi=900)
+#-----------------------------------------------------------------------------------
+
